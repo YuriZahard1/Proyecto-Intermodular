@@ -1,0 +1,63 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model usuarios {
+  id              Int        @id @default(autoincrement())
+  nombre_usuario  String     @unique @db.VarChar(30)
+  email           String     @unique @db.VarChar(255)
+  contrasena_hash String     @db.VarChar(255)
+  creado_en       DateTime   @default(now()) @db.Timestamptz(6)
+  partidas        partidas[]
+}
+
+model partidas {
+  id             Int      @id @default(autoincrement())
+  usuario_id     Int
+  fecha          DateTime @default(now()) @db.Timestamptz(6)
+  resultado      String   @db.VarChar(10)
+  es_blackjack   Boolean  @default(false)
+  puntos_jugador Int      @db.SmallInt
+  puntos_banca   Int      @db.SmallInt
+  num_manos      Int      @default(1) @db.SmallInt
+  nombre         String?  @db.VarChar(100)
+  manos          manos[]
+  usuario        usuarios @relation(fields: [usuario_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@index([usuario_id, fecha(sort: Desc)], map: "idx_partidas_usuario_fecha")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model cartas_mano {
+  id      Int    @id @default(autoincrement())
+  mano_id Int
+  orden   Int    @db.SmallInt
+  palo    String @db.VarChar(10)
+  valor   String @db.VarChar(2)
+  manos   manos  @relation(fields: [mano_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@unique([mano_id, orden], map: "uq_cartas_orden")
+  @@index([mano_id], map: "idx_cartas_mano")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model manos {
+  id           Int           @id @default(autoincrement())
+  partida_id   Int
+  propietario  String        @db.VarChar(10)
+  numero_mano  Int           @default(1) @db.SmallInt
+  puntuacion   Int           @db.SmallInt
+  resultado    String?       @db.VarChar(10)
+  doblada      Boolean       @default(false)
+  es_blackjack Boolean       @default(false)
+  cartas_mano  cartas_mano[]
+  partidas     partidas      @relation(fields: [partida_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@unique([partida_id, propietario, numero_mano], map: "uq_manos_partida")
+  @@index([partida_id], map: "idx_manos_partida")
+}
